@@ -2,6 +2,7 @@
 #include "ntcore.h"
 #include "opencv2/opencv.hpp"
 #include "opencv2/gpu/gpu.hpp"
+#include <string>
 
 
 using namespace cv;
@@ -49,8 +50,42 @@ Mat visionProcessing (Mat gpuMAT)
     return findContoursInput;
 }
 
+void setDriver(int b, int c, int e, int sh, int sa){
+    string cmd = "driversettings ";
+    if(b!=-1){
+        cmd = cmd + "-b=" + std::to_string(b) + " ";
+    }
+    if(c!=-1){
+        cmd = cmd + "-c=" + std::to_string(c) + " ";
+    }
+    if(e!=-1){
+        cmd = cmd + "-e=" + std::to_string(e) + " ";
+    }
+    if(sa!=-1){
+        cmd = cmd + "-s=" + std::to_string(sa) + " ";
+    }
+    if(sh!=-1){
+        cmd = cmd + "-sh=" + std::to_string(sh) + " ";
+    }
+
+    //std::cout<<"Running: "<<cmd;
+
+    const char *cmdca = cmd.c_str();
+
+    system(cmdca);
+
+
+}
+
 int main(int, char**)
 {
+    bool verbose = false;
+    int brightness = -1;
+    int contrast = -1;
+    int exposure = -1;
+    int sharpness = -1;
+    int saturation = -1;
+    setDriver(brightness, contrast, exposure, sharpness, saturation);
     NetworkTable::SetClientMode();
     NetworkTable::SetIPAddress("10.0.88.107");
     NetworkTable::Initialize();
@@ -62,14 +97,14 @@ int main(int, char**)
     cap.set(CV_CAP_PROP_EXPOSURE, -200);
     cap.set(CV_CAP_PROP_FRAME_WIDTH,320);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
-    VideoCapture cap2(1);
+    //VideoCapture cap2(1);
     Mat edges;
     namedWindow("raw", CV_WINDOW_AUTOSIZE);
     namedWindow("edges",CV_WINDOW_AUTOSIZE);
     for(;;)
     {
         cap >> frame; // get a new frame from camera
-        cap2 >> frame2;
+      //  cap2 >> frame2;
         if (frame.empty())
             break;
         Mat findContoursInput;
@@ -82,9 +117,9 @@ int main(int, char**)
         int method = CHAIN_APPROX_SIMPLE;
         findContours(findContoursInput, contours, hierarchy, mode, method);
         float w_threshold = 250;
-        float wl_threshold = 20;
+        float wl_threshold = 30;
         float h_threshold = 250;
-        float hl_threshold = 50;
+        float hl_threshold = 5;
         vector<int> selected;
         vector<double> centerX;
         vector<double> centerY;
@@ -94,7 +129,9 @@ int main(int, char**)
         int k = 0;
         for (int i = 0; i < contours.size(); i++)
         {
+            if(verbose){
             std::cout<<contours.size()<<"\n";
+            }
             Rect R = boundingRect(contours[i]);
 
             // filter contours according to their bounding box
@@ -122,11 +159,13 @@ int main(int, char**)
             double halfDist = (newHeight[0]+newHeight[1])/2;
             double centerBoth = (centerX[0] + centerX[1])/2;
             double centerFrame = (imageFinal.cols)/2;
+            if(verbose){
             std::cout<<centerX[0]<<"\n";
             std::cout<<centerX[1]<<"\n";
             std::cout<<centerBoth<<"\n";
             std::cout<<imageFinal.rows<<"\n";
             std::cout<<imageFinal.cols<<"\n";
+            }
             double pixelAway = centerBoth - centerFrame;
             double degreePerPixel = hFOV/imageFinal.rows;
             double newTheta = pixelAway*degreePerPixel;
@@ -146,7 +185,7 @@ int main(int, char**)
         else {
             table->PutNumber("Distance", -1.0);
         }
-        imshow("raw", frame2);
+        imshow("raw", frame);
         imshow("edges", imageFinal);
         if((char)waitKey(10) == 27) break;
     }
