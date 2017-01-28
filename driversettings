@@ -1,0 +1,49 @@
+#!/bin/bash
+BRIGHTNESS=30
+CONTRAST=10
+SATURATION=200
+SHARPNESS=50
+EXPOSURE=5
+for i in "$@"
+do
+case $i in
+    -b=*|--brightness=*)
+    BRIGHTNESS="${i#*=}"
+
+    ;;
+    -c=*|--contrast=*)
+    CONTRAST="${i#*=}"
+
+    ;;
+    -s=*|--saturation=*)
+    SATURATION="${i#*=}"
+
+    ;;
+    -sh=*|--sharpness=*)
+    SHARPNESS="${i#*=}"
+
+    ;;
+    -e=*|--exposure=*)
+    EXPOSURE="${i#*=}"
+
+    ;;
+    *)
+     echo "Unknown"
+    ;;
+esac
+done
+echo BRIGHTNESS = ${BRIGHTNESS}
+echo CONTRAST = ${CONTRAST}
+echo SATURATION = ${SATURATION}
+echo SHARPNESS = ${SHARPNESS}
+echo EXPOSURE = ${EXPOSURE}
+echo Setting Video Driver Settings!...
+v4l2-ctl \
+--set-ctrl=brightness=${BRIGHTNESS} \
+--set-ctrl=contrast=${CONTRAST} \
+--set-ctrl=saturation=${SATURATION} \
+--set-ctrl=sharpness=${SHARPNESS} \
+--set-ctrl=exposure_auto=1 \
+--set-ctrl=exposure_absolute=${EXPOSURE} 
+echo Done!
+
