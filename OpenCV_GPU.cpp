@@ -77,9 +77,172 @@ void setDriver(int b, int c, int e, int sh, int sa){
 
 }
 
+
+Mat contouringGear(Mat contourInput, bool verbose)
+{
+    bool externalOnly = false;
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    contours.clear();
+    int mode = externalOnly ? RETR_EXTERNAL : RETR_LIST;
+    int method = CHAIN_APPROX_SIMPLE;
+    findContours(contourInput, contours, hierarchy, mode, method);
+    float w_threshold = 250;
+    float wl_threshold = 30;
+    float h_threshold = 250;
+    float hl_threshold = 5;
+    vector<int> selected;
+    vector<double> centerX;
+    vector<double> centerY;
+    vector<double> allHeight;
+    vector<double> allWidth;
+    Mat imageFinalG(contourInput);
+    int k = 0;
+    for (int i = 0; i < contours.size(); i++)
+    {
+        if(verbose){
+            std::cout<<contours.size()<<"\n";
+        }
+        Rect R = boundingRect(contours[i]);
+
+        // filter contours according to their bounding box
+        if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
+        {
+            selected.push_back(i);
+            allHeight.push_back((double)R.height);
+            allWidth.push_back((double)R.width);
+            centerX.push_back((double)R.x + (double)R.width/2);
+            centerY.push_back((double)R.y + (double)R.height/2);
+            rectangle(imageFinalG, R, Scalar(255,255,255), 2, 8, 0);
+        }
+
+    }
+    if(selected.size()>1 && selected.size() < 5){
+        Point cnt;
+        Point cnt2;
+        vector<double> newHeight;
+        for ( int l = 0; l < selected.size(); l++)
+        {newHeight.push_back((94/allHeight[l])*37);}
+        if (newHeight[0] > newHeight[1])
+        {maxDist = newHeight[0];}
+        else
+        {maxDist = newHeight[1];}
+        double halfDist = (newHeight[0]+newHeight[1])/2;
+        double centerBoth = (centerX[0] + centerX[1])/2;
+        double centerFrame = (imageFinalG.cols)/2;
+        if(verbose){
+            std::cout<<centerX[0]<<"\n";
+            std::cout<<centerX[1]<<"\n";
+            std::cout<<centerBoth<<"\n";
+            std::cout<<imageFinalG.rows<<"\n";
+            std::cout<<imageFinalG.cols<<"\n";
+        }
+        double pixelAway = centerBoth - centerFrame;
+        double degreePerPixel = hFOV/imageFinalG.rows;
+        double newTheta = pixelAway*degreePerPixel;
+        table->PutNumber("Distance", halfDist);
+        table->PutNumber("Angle", newTheta);
+        for (int j = 0; j < 2; j++)
+        {
+            cnt2.x = 25;
+            cnt2.y = 25 + k;
+            cnt.x = (imageFinalG.cols/2);
+            cnt.y = (imageFinalG.rows/2)+k;
+            putText(imageFinalG,std::to_string(newHeight[j]), cnt, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+            putText(imageFinalG,std::to_string(newTheta), cnt2, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+            k = k + 50;
+        }
+    }
+    else {
+        table->PutNumber("Distance", -1.0);
+    }
+    return imageFinalG;
+}
+
+
+Mat contouringBoiler(Mat contourInput, bool verbose)
+{
+    bool externalOnly = false;
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    contours.clear();
+    int mode = externalOnly ? RETR_EXTERNAL : RETR_LIST;
+    int method = CHAIN_APPROX_SIMPLE;
+    findContours(contourInput, contours, hierarchy, mode, method);
+    float w_threshold = 500;
+    float wl_threshold = 30;
+    float h_threshold = 500;
+    float hl_threshold = 5;
+    vector<int> selected;
+    vector<double> centerX;
+    vector<double> centerY;
+    vector<double> allHeight;
+    vector<double> allWidth;
+    Mat imageFinalB(contourInput);
+    int k = 0;
+    for (int i = 0; i < contours.size(); i++)
+    {
+        if(verbose){
+            std::cout<<contours.size()<<"\n";
+        }
+        Rect R = boundingRect(contours[i]);
+
+        // filter contours according to their bounding box
+        if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
+            //if (contours.size()>0)
+        {
+            selected.push_back(i);
+            allHeight.push_back((double)R.height);
+            allWidth.push_back((double)R.width);
+            centerX.push_back((double)R.x + (double)R.width/2);
+            centerY.push_back((double)R.y + (double)R.height/2);
+            rectangle(imageFinalB, R, Scalar(255,255,255), 2, 8, 0);
+
+        }
+
+    }
+    if(selected.size()>1){
+        Point cnt;
+        Point cnt2;
+        vector<double> newWidth;
+        for ( int l = 0; l < selected.size(); l++)
+        {newWidth.push_back((80/allWidth[l])*60);}
+        double halfDist = (newWidth[0]+newWidth[1])/2;
+        double centerBoth = (centerX[0] + centerX[1])/2;
+        double centerFrame = (imageFinalB.cols)/2;
+        //        if(verbose){
+        //            std::cout<<centerX[0]<<"\n";
+        //            std::cout<<centerX[1]<<"\n";
+        //            std::cout<<centerBoth<<"\n";
+        //            std::cout<<imageFinalB.rows<<"\n";
+        //            std::cout<<imageFinalB.cols<<"\n";
+        //        }
+        double pixelAway = centerBoth - centerFrame;
+        double degreePerPixel = hFOV/imageFinalB.rows;
+        double newTheta = pixelAway*degreePerPixel;
+        //table->PutNumber("Distance", halfDist);
+        //table->PutNumber("Angle", newTheta);
+                for (int j = 0; j < 2; j++)
+                {
+                    cnt2.x = 25;
+                    cnt2.y = 25 + k;
+                    cnt.x = (imageFinalB.cols/2);
+                    cnt.y = (imageFinalB.rows/2)+k;
+                    putText(imageFinalB,std::to_string(halfDist), cnt, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+                    putText(imageFinalB,std::to_string(newTheta), cnt2, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+                    k = k + 50;
+                }
+    }
+    else {
+        //table->PutNumber("Distance", -1.0);
+    }
+    return imageFinalB;
+}
+
+
 int main(int, char**)
 {
-    bool verbose = false;
+    bool verbose = true;
     int brightness = -1;
     int contrast = -1;
     int exposure = -1;
@@ -104,87 +267,13 @@ int main(int, char**)
     for(;;)
     {
         cap >> frame; // get a new frame from camera
-      //  cap2 >> frame2;
+        //  cap2 >> frame2;
         if (frame.empty())
             break;
         Mat findContoursInput;
+        Mat imageFinal;
         findContoursInput = visionProcessing(frame);
-        bool externalOnly = false;
-        vector<vector<Point> > contours;
-        vector<Vec4i> hierarchy;
-        contours.clear();
-        int mode = externalOnly ? RETR_EXTERNAL : RETR_LIST;
-        int method = CHAIN_APPROX_SIMPLE;
-        findContours(findContoursInput, contours, hierarchy, mode, method);
-        float w_threshold = 250;
-        float wl_threshold = 30;
-        float h_threshold = 250;
-        float hl_threshold = 5;
-        vector<int> selected;
-        vector<double> centerX;
-        vector<double> centerY;
-        vector<double> allHeight;
-        vector<double> allWidth;
-        Mat imageFinal(findContoursInput);
-        int k = 0;
-        for (int i = 0; i < contours.size(); i++)
-        {
-            if(verbose){
-            std::cout<<contours.size()<<"\n";
-            }
-            Rect R = boundingRect(contours[i]);
-
-            // filter contours according to their bounding box
-            if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
-            {
-                selected.push_back(i);
-                allHeight.push_back((double)R.height);
-                allWidth.push_back((double)R.width);
-                centerX.push_back((double)R.x + (double)R.width/2);
-                centerY.push_back((double)R.y + (double)R.height/2);
-                rectangle(imageFinal, R, Scalar(255,255,255), 2, 8, 0);
-            }
-
-        }
-        if(selected.size()>1 && selected.size() < 5){
-            Point cnt;
-            Point cnt2;
-            vector<double> newHeight;
-            for ( int l = 0; l < selected.size(); l++)
-            {newHeight.push_back((94/allHeight[l])*37);}
-            if (newHeight[0] > newHeight[1])
-            {maxDist = newHeight[0];}
-            else
-            {maxDist = newHeight[1];}
-            double halfDist = (newHeight[0]+newHeight[1])/2;
-            double centerBoth = (centerX[0] + centerX[1])/2;
-            double centerFrame = (imageFinal.cols)/2;
-            if(verbose){
-            std::cout<<centerX[0]<<"\n";
-            std::cout<<centerX[1]<<"\n";
-            std::cout<<centerBoth<<"\n";
-            std::cout<<imageFinal.rows<<"\n";
-            std::cout<<imageFinal.cols<<"\n";
-            }
-            double pixelAway = centerBoth - centerFrame;
-            double degreePerPixel = hFOV/imageFinal.rows;
-            double newTheta = pixelAway*degreePerPixel;
-            table->PutNumber("Distance", halfDist);
-            table->PutNumber("Angle", newTheta);
-            for (int j = 0; j < 2; j++)
-            {
-                cnt2.x = 25;
-                cnt2.y = 25 + k;
-                cnt.x = (imageFinal.cols/2);
-                cnt.y = (imageFinal.rows/2)+k;
-                putText(imageFinal,std::to_string(newHeight[j]), cnt, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
-                putText(imageFinal,std::to_string(newTheta), cnt2, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
-                k = k + 50;
-            }
-        }
-        else {
-            table->PutNumber("Distance", -1.0);
-        }
+        imageFinal = contouringBoiler(findContoursInput, verbose);
         imshow("raw", frame);
         imshow("edges", imageFinal);
         if((char)waitKey(10) == 27) break;
