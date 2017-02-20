@@ -3,7 +3,7 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/gpu/gpu.hpp"
 #include <string>
-
+#include <unistd.h>
 
 using namespace cv;
 using std::shared_ptr;
@@ -35,11 +35,11 @@ Mat visionProcessing (Mat gpuMAT)
     gpu::GpuMat gpuhsvThresholdInput;
     Mat hsvThresholdOutput;
     gpu::cvtColor(normalizeOutput, gpuhsvThresholdInput, COLOR_BGR2HSV);
-    double hue[] = {60, 95.0};
-    double sat[] = {50, 250};
-    double val[] = {50, 250};
+    double hue[] = {30, 90};
+    double sat[] = {10, 255};
+    double val[] = {10, 250};
     Mat hsvThresholdInput(gpuhsvThresholdInput);
-    inRange(hsvThresholdInput,Scalar(30, 55, 55), Scalar(75, 255, 247), hsvThresholdOutput);
+    inRange(hsvThresholdInput,Scalar(hue[0], sat[0], val[0]), Scalar(hue[1], sat[1], val[1]), hsvThresholdOutput);
     //gpu::GpuMat drawing = hsvThresholdOutput;
     //Mat findContoursInput = hsvThresholdOutput;
     Mat findContoursInput;
@@ -69,7 +69,7 @@ void setDriver(int b, int c, int e, int sh, int sa){
     }
 
     //std::cout<<"Running: "<<cmd;
-
+    
     const char *cmdca = cmd.c_str();
 
     system(cmdca);
@@ -88,7 +88,7 @@ Mat contouringGear(Mat contourInput, bool verbose)
     int method = CHAIN_APPROX_SIMPLE;
     findContours(contourInput, contours, hierarchy, mode, method);
     float w_threshold = 250;
-    float wl_threshold = 30;
+    float wl_threshold = 50;
     float h_threshold = 250;
     float hl_threshold = 5;
     vector<int> selected;
@@ -160,7 +160,7 @@ Mat contouringGear(Mat contourInput, bool verbose)
 }
 
 
-Mat contouringBoiler(Mat contourInput, bool verbose)
+Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> table)
 {
     bool externalOnly = false;
     vector<vector<Point> > contours;
@@ -169,9 +169,9 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
     int mode = externalOnly ? RETR_EXTERNAL : RETR_LIST;
     int method = CHAIN_APPROX_SIMPLE;
     findContours(contourInput, contours, hierarchy, mode, method);
-    float w_threshold = 500;
+    float w_threshold = 300;
     float wl_threshold = 30;
-    float h_threshold = 500;
+    float h_threshold = 300;
     float hl_threshold = 5;
     vector<int> selected;
     vector<double> centerX;
@@ -189,7 +189,7 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
 
         // filter contours according to their bounding box
         if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
-            //if (contours.size()>0)
+          ///  if (contours.size()>0)
         {
             selected.push_back(i);
             allHeight.push_back((double)R.height);
@@ -197,7 +197,7 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
             centerX.push_back((double)R.x + (double)R.width/2);
             centerY.push_back((double)R.y + (double)R.height/2);
             rectangle(imageFinalB, R, Scalar(255,255,255), 2, 8, 0);
-
+	    //drawContours(imageFinalB, contours, i, Scalar(255,255,255), 2, 8, hierarchy, 0 ,Point() );
         }
 
     }
@@ -206,7 +206,7 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
         Point cnt2;
         vector<double> newWidth;
         for ( int l = 0; l < selected.size(); l++)
-        {newWidth.push_back((80/allWidth[l])*60);}
+        {newWidth.push_back((1.5*620)/(2*allWidth[l]*tan((3.14159/180)*hFOV/2)));}
         double halfDist = (newWidth[0]+newWidth[1])/2;
         double centerBoth = (centerX[0] + centerX[1])/2;
         double centerFrame = (imageFinalB.cols)/2;
@@ -220,8 +220,9 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
         double pixelAway = centerBoth - centerFrame;
         double degreePerPixel = hFOV/imageFinalB.rows;
         double newTheta = pixelAway*degreePerPixel;
-        //table->PutNumber("Distance", halfDist);
-        //table->PutNumber("Angle", newTheta);
+        table->PutNumber("Distance", halfDist);
+        table->PutNumber("Angle", newTheta);
+	std::cout<<halfDist<<"  "<<newTheta<<"\n";
                 for (int j = 0; j < 2; j++)
                 {
                     cnt2.x = 25;
@@ -234,7 +235,8 @@ Mat contouringBoiler(Mat contourInput, bool verbose)
                 }
     }
     else {
-        //table->PutNumber("Distance", -1.0);
+        table->PutNumber("Distance", -1.0);
+	std::cout<<"-1.0 \n";
     }
     return imageFinalB;
 }
@@ -250,7 +252,7 @@ int main(int, char**)
     int saturation = -1;
     setDriver(brightness, contrast, exposure, sharpness, saturation);
     NetworkTable::SetClientMode();
-    NetworkTable::SetIPAddress("10.0.88.107");
+    NetworkTable::SetTeam(88);
     NetworkTable::Initialize();
     shared_ptr<NetworkTable> table = NetworkTable::GetTable("imfeelinglucky");
     //table = NetworkTable::GetTable("imfeelinglucky");
@@ -258,12 +260,12 @@ int main(int, char**)
     if(!cap.isOpened())  // check if we succeeded
         return -1;
     cap.set(CV_CAP_PROP_EXPOSURE, -200);
-    cap.set(CV_CAP_PROP_FRAME_WIDTH,320);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+    cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
     //VideoCapture cap2(1);
     Mat edges;
-    namedWindow("raw", CV_WINDOW_AUTOSIZE);
-    namedWindow("edges",CV_WINDOW_AUTOSIZE);
+  // namedWindow("raw", CV_WINDOW_AUTOSIZE);
+  // namedWindow("edges",CV_WINDOW_AUTOSIZE);
     for(;;)
     {
         cap >> frame; // get a new frame from camera
@@ -273,9 +275,10 @@ int main(int, char**)
         Mat findContoursInput;
         Mat imageFinal;
         findContoursInput = visionProcessing(frame);
-        imageFinal = contouringBoiler(findContoursInput, verbose);
-        imshow("raw", frame);
-        imshow("edges", imageFinal);
+      // Mat inBetween = findContoursInput; 
+       imageFinal = contouringBoiler(findContoursInput, verbose, table);
+      // imshow("raw", frame);
+      // imshow("edges", imageFinal);
         if((char)waitKey(10) == 27) break;
     }
 }
