@@ -7,12 +7,13 @@
 
 using namespace cv;
 using std::shared_ptr;
-Mat frame;
-Mat frame2;
+Mat frameB;
+Mat frameG;
 gpu::GpuMat gpuFrame;
 int setHeight = 94;
 int setDist = 37;
 float maxDist;
+float minDist;
 float oldDist;
 int distBetween = 6;
 double hFOV = 62;
@@ -20,7 +21,7 @@ double hFOV = 62;
 
 NetworkTable *table;
 
-Mat visionProcessing (Mat gpuMAT)
+Mat visionProcessing (Mat gpuMAT, double hue, double sat, double val)
 {
     gpu::GpuMat gpuFrame;
     gpuFrame.upload(gpuMAT);
@@ -35,11 +36,8 @@ Mat visionProcessing (Mat gpuMAT)
     gpu::GpuMat gpuhsvThresholdInput;
     Mat hsvThresholdOutput;
     gpu::cvtColor(normalizeOutput, gpuhsvThresholdInput, COLOR_BGR2HSV);
-    double hue[] = {30, 90};
-    double sat[] = {10, 255};
-    double val[] = {10, 250};
     Mat hsvThresholdInput(gpuhsvThresholdInput);
-    inRange(hsvThresholdInput,Scalar(hue[0], sat[0], val[0]), Scalar(hue[1], sat[1], val[1]), hsvThresholdOutput);
+    inRange(hsvThresholdInput,Scalar(hue-10, sat-100, val-100), Scalar(hue+10, sat+100, val+100), hsvThresholdOutput);
     //gpu::GpuMat drawing = hsvThresholdOutput;
     //Mat findContoursInput = hsvThresholdOutput;
     Mat findContoursInput;
@@ -78,7 +76,7 @@ void setDriver(int b, int c, int e, int sh, int sa){
 }
 
 
-Mat contouringGear(Mat contourInput, bool verbose)
+Mat contouringGear(Mat contourInput, bool verbose, shared_ptr<NetworkTable> table)
 {
     bool externalOnly = false;
     vector<vector<Point> > contours;
@@ -124,9 +122,10 @@ Mat contouringGear(Mat contourInput, bool verbose)
         for ( int l = 0; l < selected.size(); l++)
         {newHeight.push_back((94/allHeight[l])*37);}
         if (newHeight[0] > newHeight[1])
-        {maxDist = newHeight[0];}
+        {maxDist = newHeight[0]; minDist = newHeight[1];}
         else
-        {maxDist = newHeight[1];}
+        {maxDist = newHeight[1]; minDist = newHeight[0];}
+        double newTheta = ((maxDist*maxDist)+(distBetween*distBetween)-(minDist*minDist))/(2*maxDist*distBetween);
         double halfDist = (newHeight[0]+newHeight[1])/2;
         double centerBoth = (centerX[0] + centerX[1])/2;
         double centerFrame = (imageFinalG.cols)/2;
@@ -139,9 +138,10 @@ Mat contouringGear(Mat contourInput, bool verbose)
         }
         double pixelAway = centerBoth - centerFrame;
         double degreePerPixel = hFOV/imageFinalG.rows;
-        double newTheta = pixelAway*degreePerPixel;
-        table->PutNumber("Distance", halfDist);
-        table->PutNumber("Angle", newTheta);
+        double newGamma = pixelAway*degreePerPixel;
+        table->PutNumber("DistanceG", halfDist);
+        table->PutNumber("Gamma", newGamma);
+        table->PutNumber("Theta", newTheta);
         for (int j = 0; j < 2; j++)
         {
             cnt2.x = 25;
@@ -154,7 +154,7 @@ Mat contouringGear(Mat contourInput, bool verbose)
         }
     }
     else {
-        table->PutNumber("Distance", -1.0);
+        table->PutNumber("DistanceG", -1.0);
     }
     return imageFinalG;
 }
@@ -189,7 +189,7 @@ Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> ta
 
         // filter contours according to their bounding box
         if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
-          ///  if (contours.size()>0)
+            ///  if (contours.size()>0)
         {
             selected.push_back(i);
             allHeight.push_back((double)R.height);
@@ -197,7 +197,7 @@ Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> ta
             centerX.push_back((double)R.x + (double)R.width/2);
             centerY.push_back((double)R.y + (double)R.height/2);
             rectangle(imageFinalB, R, Scalar(255,255,255), 2, 8, 0);
-	    //drawContours(imageFinalB, contours, i, Scalar(255,255,255), 2, 8, hierarchy, 0 ,Point() );
+            //drawContours(imageFinalB, contours, i, Scalar(255,255,255), 2, 8, hierarchy, 0 ,Point() );
         }
 
     }
@@ -220,23 +220,23 @@ Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> ta
         double pixelAway = centerBoth - centerFrame;
         double degreePerPixel = hFOV/imageFinalB.rows;
         double newTheta = pixelAway*degreePerPixel;
-        table->PutNumber("Distance", halfDist);
-        table->PutNumber("Angle", newTheta);
-	std::cout<<halfDist<<"  "<<newTheta<<"\n";
-                for (int j = 0; j < 2; j++)
-                {
-                    cnt2.x = 25;
-                    cnt2.y = 25 + k;
-                    cnt.x = (imageFinalB.cols/2);
-                    cnt.y = (imageFinalB.rows/2)+k;
-                    putText(imageFinalB,std::to_string(halfDist), cnt, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
-                    putText(imageFinalB,std::to_string(newTheta), cnt2, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
-                    k = k + 50;
-                }
+        table->PutNumber("DistanceB", halfDist);
+        table->PutNumber("AngleB", newTheta);
+        //std::cout<<halfDist<<"  "<<newTheta<<"\n";
+        for (int j = 0; j < 2; j++)
+        {
+            cnt2.x = 25;
+            cnt2.y = 25 + k;
+            cnt.x = (imageFinalB.cols/2);
+            cnt.y = (imageFinalB.rows/2)+k;
+            putText(imageFinalB,std::to_string(halfDist), cnt, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+            putText(imageFinalB,std::to_string(newTheta), cnt2, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255), 1, 8, false);
+            k = k + 50;
+        }
     }
     else {
-        table->PutNumber("Distance", -1.0);
-	std::cout<<"-1.0 \n";
+        table->PutNumber("DistanceB", -1.0);
+        //std::cout<<"-1.0 \n";
     }
     return imageFinalB;
 }
@@ -245,40 +245,97 @@ Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> ta
 int main(int, char**)
 {
     bool verbose = true;
+    bool switchCam = true;
     int brightness = -1;
     int contrast = -1;
     int exposure = -1;
     int sharpness = -1;
     int saturation = -1;
+    double temphue = -1;
+    double tempsat = -1;
+    double tempval = -1;
+    double hue;
+    double sat;
+    double val;
     setDriver(brightness, contrast, exposure, sharpness, saturation);
     NetworkTable::SetClientMode();
     NetworkTable::SetTeam(88);
     NetworkTable::Initialize();
     shared_ptr<NetworkTable> table = NetworkTable::GetTable("imfeelinglucky");
+    temphue = table->GetNumber("visionH");
+    tempsat = table->GetNumber("visionS");
+    tempval = table->GetNumber("visionV");
+    camNum = table->GetNumber("visionFeed");
+    switchCam = table->GetBoolean("camSwitch");
+    if (temphue == -1)
+    {
+        hue = 50;
+    }
+    else
+    {
+        hue = temphue;
+    }
+    if (tempsat == -1)
+    {
+        sat = 150;
+    }
+    else
+    {
+        sat = tempsat;
+    }
+    if (tempval == -1)
+    {
+        val = 150;
+    }
+    else
+    {
+        val = tempval;
+    }
     //table = NetworkTable::GetTable("imfeelinglucky");
     VideoCapture cap(-1); // open the default camera
+    VideoCapture cap2(1);
+    //VideoWriter outputVideo;
     if(!cap.isOpened())  // check if we succeeded
+        return -1;
+    if(!cap2.isOpened())  // check if we succeeded
         return -1;
     cap.set(CV_CAP_PROP_EXPOSURE, -200);
     cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
-    //VideoCapture cap2(1);
-    Mat edges;
-  // namedWindow("raw", CV_WINDOW_AUTOSIZE);
-  // namedWindow("edges",CV_WINDOW_AUTOSIZE);
+    cap2.set(CV_CAP_PROP_EXPOSURE, -200);
+    cap2.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    cap2.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+    // namedWindow("raw", CV_WINDOW_AUTOSIZE);
+    // namedWindow("edges",CV_WINDOW_AUTOSIZE);
     for(;;)
     {
-        cap >> frame; // get a new frame from camera
-        //  cap2 >> frame2;
-        if (frame.empty())
+        if (switchCam) {
+            cap >> frameB; // get a new frame from boiler camera
+            cap2 >> frameG; // get a new frame from gear camera
+        }
+        else {
+            cap >> frameG; // get a new frame from gear camera
+            cap2 >> frameB; // get a new frame from boiler camera
+
+        }
+        if (frameB.empty())
             break;
-        Mat findContoursInput;
-        Mat imageFinal;
-        findContoursInput = visionProcessing(frame);
-      // Mat inBetween = findContoursInput; 
-       imageFinal = contouringBoiler(findContoursInput, verbose, table);
-      // imshow("raw", frame);
-      // imshow("edges", imageFinal);
+        Mat findContoursInputB;
+        Mat findContoursInputG;
+        Mat imageFinalB;
+        Mat imageFinalG;
+        findContoursInputB = visionProcessing(frameB, hue, sat, val);
+        findContoursInputG = visionProcessing(frameG, hue, sat, val);
+        imageFinalB = contouringBoiler(findContoursInputB, verbose, table);
+        imageFinalG= contouringGear(findContoursInputG, verbose, table);
+        switch(camNum) {
+        case 1: imwrite("/home/ubuntu/stream/c1.jpg", imageFinalB); break;
+        case 2: imwrite("/home/ubuntu/stream/c1.jpg", frameB); break;
+        case 3: imwrite("/home/ubuntu/stream/c1.jpg", imageFinalG); break;
+        case 4: imwrite("/home/ubuntu/stream/c1.jpg", frameG); break;
+        }
+        // imshow("raw", frameB);
+        // imshow("edges", imageFinal);
         if((char)waitKey(10) == 27) break;
     }
 }
