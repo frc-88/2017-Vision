@@ -245,15 +245,15 @@ Mat contouringBoiler(Mat contourInput, bool verbose, shared_ptr<NetworkTable> ta
 int main(int, char**)
 {
     bool verbose = true;
-    bool switchCam = true;
+    bool switchCam;
     int brightness = -1;
     int contrast = -1;
     int exposure = -1;
     int sharpness = -1;
     int saturation = -1;
-    double temphue = -1;
-    double tempsat = -1;
-    double tempval = -1;
+    double temphue;
+    double tempsat;
+    double tempval;
     double hue;
     double sat;
     double val;
@@ -262,11 +262,11 @@ int main(int, char**)
     NetworkTable::SetTeam(88);
     NetworkTable::Initialize();
     shared_ptr<NetworkTable> table = NetworkTable::GetTable("imfeelinglucky");
-    temphue = table->GetNumber("visionH");
-    tempsat = table->GetNumber("visionS");
-    tempval = table->GetNumber("visionV");
-    camNum = table->GetNumber("visionFeed");
-    switchCam = table->GetBoolean("camSwitch");
+    temphue = table->GetNumber("visionH", -1);
+    tempsat = table->GetNumber("visionS", -1);
+    tempval = table->GetNumber("visionV", -1);
+    int camNum = table->GetNumber("visionFeed", 1);
+    switchCam = table->GetBoolean("camSwitch", true);
     if (temphue == -1)
     {
         hue = 50;
