@@ -96,6 +96,7 @@ Mat contouringGear(Mat contourInput, bool verbose, shared_ptr<NetworkTable> tabl
     float wl_threshold = 20;
     float h_threshold = 250;
     float hl_threshold = 25;
+    float minPerimeter = 30;
     vector<int> selected;
     vector<double> centerX;
     vector<double> centerY;
@@ -109,6 +110,9 @@ Mat contouringGear(Mat contourInput, bool verbose, shared_ptr<NetworkTable> tabl
             std::cout<<contours.size()<<"\n";
         }
         Rect R = boundingRect(contours[i]);
+
+        // filter contours by contour perimeter
+        if (arcLength(contours[i], true) < minPerimeter) continue;
 
         // filter contours according to their bounding box
         if (R.width < w_threshold && R.height < h_threshold && R.width > wl_threshold && R.height > hl_threshold)
